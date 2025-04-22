@@ -2,54 +2,85 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
-  <title>Potato 消息中转站</title>
+  <title>Potato 聊天中转站</title>
   <style>
     body { font-family: sans-serif; display: flex; height: 100vh; margin: 0; }
-    .sidebar { width: 200px; background: #f0f0f0; overflow-y: auto; padding: 1em; }
+    .sidebar { width: 220px; background: #f2f2f2; overflow-y: auto; padding: 1em; border-right: 1px solid #ccc; }
+    .chat-container { flex: 1; display: flex; flex-direction: column; }
     .chat { flex: 1; padding: 1em; overflow-y: auto; }
+    .input-area { padding: 1em; border-top: 1px solid #ccc; display: flex; gap: 0.5em; }
     .message { margin-bottom: 0.5em; }
-    .user { font-weight: bold; color: #0070f3; }
-    .me { font-weight: bold; color: #008000; }
+    .user { color: #0070f3; font-weight: bold; }
+    .me { color: #008000; font-weight: bold; }
   </style>
 </head>
 <body>
 
   <div class="sidebar" id="userList">加载中...</div>
-  <div class="chat" id="chatArea">请选择一个用户查看消息</div>
+
+  <div class="chat-container">
+    <div class="chat" id="chatArea">请选择一个用户查看消息</div>
+    <div class="input-area" id="inputArea" style="display:none;">
+      <input type="text" id="msgInput" placeholder="输入要发送的消息..." style="flex:1; padding: 0.5em;" />
+      <button onclick="sendMessage()">发送</button>
+    </div>
+  </div>
 
   <script>
-    const WORKER_URL = 'https://jdz.smlrn.workers.dev'; // ← 替换成你自己的 Worker 地址
+    const WORKER_URL = 'https://jdz.smlrn.workers.dev'; // 你的后端 Worker 地址
+    let currentUser = null;
 
-    // 拉取所有用户ID（需要你未来支持 GET /users 或提前写死）
-    const userList = ['123456', '654321']; // 临时写死示例
+    async function loadUsers() {
+      const res = await fetch(`${WORKER_URL}/users`);
+      const users = await res.json();
+      const userList = document.getElementById('userList');
+      userList.innerHTML = '';
 
-    const userListDiv = document.getElementById('userList');
-    const chatArea = document.getElementById('chatArea');
-
-    userListDiv.innerHTML = '';
-    userList.forEach(userId => {
-      const div = document.createElement('div');
-      div.textContent = userId;
-      div.style.cursor = 'pointer';
-      div.onclick = () => loadChat(userId);
-      userListDiv.appendChild(div);
-    });
+      users.forEach(userId => {
+        const div = document.createElement('div');
+        div.textContent = userId;
+        div.style.cursor = 'pointer';
+        div.onclick = () => loadChat(userId);
+        userList.appendChild(div);
+      });
+    }
 
     async function loadChat(userId) {
-      chatArea.innerHTML = `加载 ${userId} 的消息中...`;
-      const res = await fetch(`${WORKER_URL}?user_id=${userId}`);
+      currentUser = userId;
+      document.getElementById('inputArea').style.display = 'flex';
+      const res = await fetch(`${WORKER_URL}/?user_id=${userId}`);
       const messages = await res.json();
+      const chat = document.getElementById('chatArea');
+      chat.innerHTML = '';
 
-      chatArea.innerHTML = '';
       messages.forEach(msg => {
         const div = document.createElement('div');
         div.className = 'message';
-        const from = msg.userId === userId ? '<span class="user">用户</span>' : '<span class="me">你</span>';
+        const who = msg.userId === userId ? '<span class="user">用户</span>' : '<span class="me">你</span>';
         const time = new Date(msg.timestamp).toLocaleTimeString();
-        div.innerHTML = `${time} ${from}：${msg.message}`;
-        chatArea.appendChild(div);
+        div.innerHTML = `${time} ${who}：${msg.message}`;
+        chat.appendChild(div);
       });
+
+      chat.scrollTop = chat.scrollHeight;
     }
+
+    async function sendMessage() {
+      const text = document.getElementById('msgInput').value.trim();
+      if (!text || !currentUser) return alert("请输入消息");
+
+      const res = await fetch(`${WORKER_URL}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: currentUser, text })
+      });
+
+      const reply = await res.text();
+      alert(reply);
+      document.getElementById('msgInput').value = '';
+    }
+
+    loadUsers();
   </script>
 </body>
 </html>
