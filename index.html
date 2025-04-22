@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>Potato 消息中转站</title>
+  <style>
+    body { font-family: sans-serif; display: flex; height: 100vh; margin: 0; }
+    .sidebar { width: 200px; background: #f0f0f0; overflow-y: auto; padding: 1em; }
+    .chat { flex: 1; padding: 1em; overflow-y: auto; }
+    .message { margin-bottom: 0.5em; }
+    .user { font-weight: bold; color: #0070f3; }
+    .me { font-weight: bold; color: #008000; }
+  </style>
+</head>
+<body>
+
+  <div class="sidebar" id="userList">加载中...</div>
+  <div class="chat" id="chatArea">请选择一个用户查看消息</div>
+
+  <script>
+    const WORKER_URL = 'https://jdz.smlrn.workers.dev'; // ← 替换成你自己的 Worker 地址
+
+    // 拉取所有用户ID（需要你未来支持 GET /users 或提前写死）
+    const userList = ['123456', '654321']; // 临时写死示例
+
+    const userListDiv = document.getElementById('userList');
+    const chatArea = document.getElementById('chatArea');
+
+    userListDiv.innerHTML = '';
+    userList.forEach(userId => {
+      const div = document.createElement('div');
+      div.textContent = userId;
+      div.style.cursor = 'pointer';
+      div.onclick = () => loadChat(userId);
+      userListDiv.appendChild(div);
+    });
+
+    async function loadChat(userId) {
+      chatArea.innerHTML = `加载 ${userId} 的消息中...`;
+      const res = await fetch(`${WORKER_URL}?user_id=${userId}`);
+      const messages = await res.json();
+
+      chatArea.innerHTML = '';
+      messages.forEach(msg => {
+        const div = document.createElement('div');
+        div.className = 'message';
+        const from = msg.userId === userId ? '<span class="user">用户</span>' : '<span class="me">你</span>';
+        const time = new Date(msg.timestamp).toLocaleTimeString();
+        div.innerHTML = `${time} ${from}：${msg.message}`;
+        chatArea.appendChild(div);
+      });
+    }
+  </script>
+</body>
+</html>
