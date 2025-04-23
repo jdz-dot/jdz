@@ -228,6 +228,38 @@ async function deleteUser(userId) {
 
 
 loadUsers();
+
+  // ✅ 新增：每 10 秒轮询检测新用户 + 新消息提示
+  let lastStatus = {};
+
+  setInterval(async () => {
+    const res = await fetch(`${WORKER_URL}/user-status`);
+    const status = await res.json();
+    const sidebar = document.getElementById("sidebar");
+
+    let needsReload = false;
+
+    for (const userId in status) {
+      const el = sidebar.querySelector(`.user-item[data-user-id="${userId}"]`);
+      const prevTime = lastStatus[userId] || 0;
+      if (!el) {
+        needsReload = true;
+        break;
+      } else if (status[userId] > prevTime && userId !== currentUser) {
+        el.classList.add("unread");
+      } else {
+        el.classList.remove("unread");
+      }
+    }
+
+    if (needsReload) {
+      console.log("🆕 检测到新用户，刷新列表");
+      loadUsers();
+    }
+
+    lastStatus = status;
+  }, 10000); // 每 10 秒轮询
+
 </script>
 </body>
 </html>
