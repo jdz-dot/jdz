@@ -1,34 +1,131 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <title>Potato 聊天中转站</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JDZ 私人客服</title>
   <style>
-    body { font-family: sans-serif; display: flex; height: 100vh; margin: 0; }
-    .sidebar { width: 220px; background: #f2f2f2; overflow-y: auto; padding: 1em; border-right: 1px solid #ccc; }
-    .chat-container { flex: 1; display: flex; flex-direction: column; }
-    .chat { flex: 1; padding: 1em; overflow-y: auto; }
-    .input-area { padding: 1em; border-top: 1px solid #ccc; display: flex; gap: 0.5em; }
-    .message { margin-bottom: 0.5em; }
-    .user { color: #0070f3; font-weight: bold; }
-    .me { color: #008000; font-weight: bold; }
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+    }
+    #login {
+      display: flex;
+      height: 100vh;
+      justify-content: center;
+      align-items: center;
+      background: #fff;
+    }
+    #chat {
+      display: none;
+      max-width: 900px;
+      margin: auto;
+      height: 100vh;
+      display: flex;
+      flex-direction: row;
+    }
+    #userList {
+      width: 200px;
+      border-right: 1px solid #ccc;
+      background: #fafafa;
+      padding: 10px;
+      overflow-y: auto;
+    }
+    #userList div {
+      padding: 6px;
+      cursor: pointer;
+      border-bottom: 1px solid #eee;
+    }
+    #chatBox {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+    }
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      background: #fff;
+      padding: 10px;
+      border: 1px solid #ccc;
+    }
+    .msg {
+      margin-bottom: 10px;
+      max-width: 80%;
+    }
+    .me {
+      text-align: right;
+      margin-left: auto;
+    }
+    .user {
+      text-align: left;
+      margin-right: auto;
+    }
+    .meta {
+      font-size: 12px;
+      color: #888;
+    }
+    #inputBox {
+      margin-top: 10px;
+      display: flex;
+    }
+    #msgInput {
+      flex: 1;
+      padding: 8px;
+    }
+    button {
+      padding: 8px 12px;
+    }
+    @media (max-width: 600px) {
+      #chat {
+        flex-direction: column;
+      }
+      #userList {
+        width: 100%;
+        height: 150px;
+        border-right: none;
+        border-bottom: 1px solid #ccc;
+      }
+    }
   </style>
 </head>
 <body>
+  <div id="login">
+    <div>
+      <h2>🔒 请输入密码进入系统</h2>
+      <input type="password" id="pwdInput" placeholder="请输入密码 jdz500w" />
+      <button onclick="checkPwd()">登录</button>
+      <p id="loginTip" style="color: red;"></p>
+    </div>
+  </div>
 
-  <div class="sidebar" id="userList">加载中...</div>
-
-  <div class="chat-container">
-    <div class="chat" id="chatArea">请选择一个用户查看消息</div>
-    <div class="input-area" id="inputArea" style="display:none;">
-      <input type="text" id="msgInput" placeholder="输入要发送的消息..." style="flex:1; padding: 0.5em;" />
-      <button onclick="sendMessage()">发送</button>
+  <div id="chat">
+    <div id="userList"></div>
+    <div id="chatBox">
+      <div id="messages"></div>
+      <div id="inputBox">
+        <input id="msgInput" placeholder="输入消息…" />
+        <button onclick="sendMessage()">发送</button>
+      </div>
     </div>
   </div>
 
   <script>
-    const WORKER_URL = 'https://jdz.smlrn.workers.dev'; // 你的后端 Worker 地址
+    const WORKER_URL = 'https://ai.jdz.ip-ddns.com'; // 更改为你的 Worker 域名
+    const CHAT_PWD = "jdz500w";
     let currentUser = null;
+
+    function checkPwd() {
+      const pwd = document.getElementById("pwdInput").value;
+      if (pwd !== CHAT_PWD) {
+        document.getElementById("loginTip").textContent = "密码错误";
+        return;
+      }
+      document.getElementById("login").style.display = "none";
+      document.getElementById("chat").style.display = "flex";
+      loadUsers();
+    }
 
     async function loadUsers() {
       const res = await fetch(`${WORKER_URL}/users`);
@@ -37,73 +134,47 @@
       userList.innerHTML = '';
 
       users.forEach(userId => {
-  const div = document.createElement('div');
-
-  // 判断 ID 是否看起来像是真实 chat_id（通常是 7 位及以上的纯数字）
-  const isVerified = /^[1-9]\d{6,}$/.test(userId);
-
-  // 添加状态标识
-  div.innerHTML = `${userId} <span style="font-size: 12px; color: ${isVerified ? 'green' : 'red'}">[${isVerified ? '已验证' : '未验证'}]</span>`;
-  div.style.cursor = 'pointer';
-  div.style.padding = '6px';
-  div.style.borderBottom = '1px solid #ddd';
-
-  div.onclick = () => loadChat(userId);
-  userList.appendChild(div);
-});
-
+        const div = document.createElement('div');
+        const isVerified = /^[1-9]\d{6,}$/.test(userId);
+        div.innerHTML = `${userId} <span style="font-size: 12px; color: ${isVerified ? 'green' : 'red'}">[${isVerified ? '验证' : '测试'}]</span>`;
+        div.onclick = () => loadChat(userId);
+        userList.appendChild(div);
+      });
     }
 
     async function loadChat(userId) {
       currentUser = userId;
-      document.getElementById('inputArea').style.display = 'flex';
       const res = await fetch(`${WORKER_URL}/?user_id=${userId}`);
-      const messages = await res.json();
-      const chat = document.getElementById('chatArea');
-      chat.innerHTML = '';
+      const data = await res.json();
+      const messages = document.getElementById("messages");
+      messages.innerHTML = '';
 
-      messages.forEach(msg => {
-        const div = document.createElement('div');
-        div.className = 'message';
-        const who = msg.userId === userId ? '<span class="user">用户</span>' : '<span class="me">你</span>';
-        const time = new Date(msg.timestamp).toLocaleTimeString();
-        div.innerHTML = `${time} ${who}：${msg.message}`;
-        chat.appendChild(div);
+      data.forEach(msg => {
+        const div = document.createElement("div");
+        div.className = "msg " + (msg.from === "me" ? "me" : "user");
+        const date = new Date(msg.timestamp).toLocaleTimeString();
+        div.innerHTML = `
+          <div class="meta">${msg.from === "me" ? "你" : "用户"} · ${date}</div>
+          <div>${msg.message}</div>
+        `;
+        messages.appendChild(div);
+      });
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const text = document.getElementById('msgInput').value.trim();
+      if (!text || !currentUser) return alert("请输入消息");
+
+      await fetch(`${WORKER_URL}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: currentUser, text })
       });
 
-      chat.scrollTop = chat.scrollHeight;
+      document.getElementById('msgInput').value = '';
+      loadChat(currentUser);
     }
-
-async function sendMessage() {
-  const text = document.getElementById('msgInput').value.trim();
-  if (!text || !currentUser) {
-    alert("请输入消息");
-    return;
-  }
-
-  try {
-    const res = await fetch(`${WORKER_URL}/send`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: currentUser, text })
-    });
-
-    const reply = await res.json();
-
-    if (reply.ok) {
-      alert("✅ 消息已发送！");
-    } else {
-      alert(`❌ 发送失败：${reply.error || '未知错误'}`);
-    }
-
-    document.getElementById('msgInput').value = '';
-  } catch (err) {
-    alert("❌ 网络请求失败：" + err.message);
-  }
-}
-
-
-    loadUsers();
   </script>
 </body>
 </html>
