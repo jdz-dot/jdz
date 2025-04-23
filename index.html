@@ -27,7 +27,7 @@
   </div>
 
   <script>
-    const WORKER_URL = 'https://jdz.smlrn.workers.dev'; // 你的后端 Worker 地址
+    const WORKER_URL = 'https://ai.jdz.ip-ddns.com'; // 你的后端 Worker 地址
     let currentUser = null;
 
     async function loadUsers() {
@@ -54,25 +54,26 @@
 
     }
 
-    async function loadChat(userId) {
-      currentUser = userId;
-      document.getElementById('inputArea').style.display = 'flex';
-      const res = await fetch(`${WORKER_URL}/?user_id=${userId}`);
-      const messages = await res.json();
-      const chat = document.getElementById('chatArea');
-      chat.innerHTML = '';
+async function loadChat(userId) {
+  currentUser = userId;
+  document.getElementById('inputArea').style.display = 'flex';
+  const res = await fetch(`${WORKER_URL}/messages?user_id=${userId}`);
+  const messages = await res.json();
+  const chat = document.getElementById('chatArea');
+  chat.innerHTML = '';
 
-      messages.forEach(msg => {
-        const div = document.createElement('div');
-        div.className = 'message';
-        const who = msg.userId === userId ? '<span class="user">用户</span>' : '<span class="me">你</span>';
-        const time = new Date(msg.timestamp).toLocaleTimeString();
-        div.innerHTML = `${time} ${who}：${msg.message}`;
-        chat.appendChild(div);
-      });
+  messages.forEach(msg => {
+    const div = document.createElement('div');
+    div.className = 'message';
+    const who = msg.from === "user" ? '<span class="user">用户</span>' : '<span class="me">你</span>';
+    const time = new Date(msg.timestamp).toLocaleTimeString();
+    div.innerHTML = `${time} ${who}：${msg.message}`;
+    chat.appendChild(div);
+  });
 
-      chat.scrollTop = chat.scrollHeight;
-    }
+  chat.scrollTop = chat.scrollHeight;
+}
+
 
 async function sendMessage() {
   const text = document.getElementById('msgInput').value.trim();
@@ -91,16 +92,16 @@ async function sendMessage() {
     const reply = await res.json();
 
     if (reply.ok) {
-      alert("✅ 消息已发送！");
+      document.getElementById('msgInput').value = '';
+      await loadChat(currentUser); // ✅ 自动刷新消息
     } else {
       alert(`❌ 发送失败：${reply.error || '未知错误'}`);
     }
-
-    document.getElementById('msgInput').value = '';
   } catch (err) {
     alert("❌ 网络请求失败：" + err.message);
   }
 }
+
 
 
     loadUsers();
