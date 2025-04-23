@@ -2,122 +2,206 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Potato 聊天面板</title>
+  <title>Potato 聊天管理</title>
   <style>
-    body { font-family: sans-serif; margin: 0; display: flex; height: 100vh; background: #f8f9fa; }
-    #sidebar { width: 240px; background: #fff; border-right: 1px solid #ccc; overflow-y: auto; }
-    #chatbox { flex: 1; display: flex; flex-direction: column; }
-    .user-item { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; }
-    .user-item span { display: block; font-size: 12px; color: #888; }
-    #messages { flex: 1; overflow-y: auto; padding: 10px; background: #fff; }
-    .msg { max-width: 80%; margin: 5px 0; padding: 10px; border-radius: 10px; position: relative; }
-    .me { background: #d9edf7; align-self: flex-end; text-align: right; }
-    .user { background: #f1f1f1; align-self: flex-start; }
-    .timestamp { font-size: 10px; color: #999; margin-top: 3px; }
-    #inputbar { display: flex; padding: 10px; background: #f5f5f5; }
-    #msgInput { flex: 1; padding: 6px; font-size: 14px; }
-    #sendBtn { padding: 6px 12px; margin-left: 6px; }
+    body {
+      font-family: 'Microsoft YaHei', sans-serif;
+      margin: 0;
+      display: flex;
+      height: 100vh;
+      background: #f7f7f7;
+    }
+    #sidebar {
+      width: 260px;
+      background: #fff;
+      border-right: 1px solid #ccc;
+      overflow-y: auto;
+      padding: 10px;
+    }
+    #chat {
+      flex: 1;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      position: relative;
+    }
+    .user-item {
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      font-size: 14px;
+    }
+    .user-item:hover {
+      background: #f0f0f0;
+    }
+    .user-item.unread {
+      border-left: 5px solid red;
+      background: #fff0f0;
+    }
+    .msg-me, .msg-user {
+      max-width: 70%;
+      margin: 5px 0;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      position: relative;
+    }
+    .msg-me {
+      align-self: flex-end;
+      background: #e6f7ff;
+      text-align: right;
+    }
+    .msg-user {
+      align-self: flex-start;
+      background: #fff;
+      border: 1px solid #ccc;
+    }
+    .msg-meta {
+      font-size: 11px;
+      color: gray;
+      margin-top: 3px;
+    }
+    #inputArea {
+      display: flex;
+      padding: 10px;
+      background: #fff;
+      border-top: 1px solid #ccc;
+    }
+    #msgInput {
+      flex: 1;
+      padding: 8px;
+      font-size: 14px;
+    }
+    #sendBtn {
+      padding: 8px 16px;
+      margin-left: 8px;
+    }
   </style>
 </head>
 <body>
-  <div id="sidebar"></div>
-  <div id="chatbox">
-    <div id="messages"></div>
-    <div id="inputbar">
-      <input id="msgInput" placeholder="输入消息...">
-      <button id="sendBtn" onclick="sendMessage()">发送</button>
+
+  <div id="sidebar">加载中...</div>
+
+  <div style="flex: 1; display: flex; flex-direction: column;">
+    <div id="chat"></div>
+    <div id="inputArea">
+      <input id="msgInput" placeholder="请输入消息..." />
+      <button id="sendBtn">发送</button>
     </div>
   </div>
 
-  <script>
-    const WORKER_URL = "https://ai.jdz.ip-ddns.com";
-    let currentUser = null;
+<script>
+const WORKER_URL = "https://ai.jdz.ip-ddns.com"; // 你的 Worker 地址
+let currentUser = null;
+let lastSeen = {};
 
-    async function loadUsers() {
-      const res = await fetch(`${WORKER_URL}/users`);
-      const users = await res.json();
-      const sidebar = document.getElementById('sidebar');
-      sidebar.innerHTML = '';
-      users.forEach(({ userId, username }) => {
-        const div = document.createElement('div');
-        div.className = 'user-item';
-        div.innerHTML = `
-          <strong>${username ? '@' + username : '(未知)'}</strong> <span>ID: ${userId}</span>
-          <button onclick="clearChat('${userId}')">清空</button>
-          <button onclick="deleteUser('${userId}')">删除</button>
-        `;
-        div.onclick = () => loadChat(userId);
-        sidebar.appendChild(div);
-      });
+document.getElementById("sendBtn").onclick = sendMessage;
+
+async function loadUsers() {
+  const res = await fetch(`${WORKER_URL}/users`);
+  const users = await res.json();
+  const sidebar = document.getElementById("sidebar");
+  sidebar.innerHTML = '';
+
+  users.forEach(({ userId, username }) => {
+    const div = document.createElement("div");
+    div.className = "user-item";
+    div.setAttribute("data-user-id", userId);
+    div.innerHTML = `
+      <strong>${username ? '@' + username : '(未知)'}</strong> <span>ID: ${userId}</span>
+      <div style="margin-top: 5px;">
+        <button onclick="event.stopPropagation(); clearChat('${userId}')">清空</button>
+        <button onclick="event.stopPropagation(); deleteUser('${userId}')">删除</button>
+      </div>
+    `;
+    div.onclick = () => loadChat(userId);
+    sidebar.appendChild(div);
+  });
+}
+
+async function loadChat(userId) {
+  currentUser = userId;
+  const chatDiv = document.getElementById("chat");
+  chatDiv.innerHTML = "加载中...";
+  const res = await fetch(`${WORKER_URL}/?user_id=${userId}`);
+  const messages = await res.json();
+  chatDiv.innerHTML = "";
+  messages.forEach(msg => {
+    const div = document.createElement("div");
+    div.className = msg.from === "me" ? "msg-me" : "msg-user";
+    div.innerHTML = `
+      <div>${msg.message}</div>
+      <div class="msg-meta">${msg.from}｜${formatTime(msg.timestamp)}</div>
+    `;
+    chatDiv.appendChild(div);
+  });
+  chatDiv.scrollTop = chatDiv.scrollHeight;
+
+  // 记录已读时间
+  if (messages.length > 0) {
+    lastSeen[userId] = messages[messages.length - 1].timestamp;
+  }
+
+  // 清除未读提示
+  const el = document.querySelector(`.user-item[data-user-id="${userId}"]`);
+  if (el) el.classList.remove("unread");
+}
+
+function formatTime(ts) {
+  const d = new Date(ts);
+  return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+}
+
+async function sendMessage() {
+  const input = document.getElementById("msgInput");
+  const text = input.value.trim();
+  if (!text || !currentUser) return;
+  input.value = "";
+  await fetch(`${WORKER_URL}/send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: currentUser, text })
+  });
+  await loadChat(currentUser);
+}
+
+// ✅ 每 10 秒轮询 /user-status 判断未读消息
+setInterval(async () => {
+  const res = await fetch(`${WORKER_URL}/user-status`);
+  const status = await res.json();
+  for (const userId in status) {
+    const el = document.querySelector(`.user-item[data-user-id="${userId}"]`);
+    if (!el) continue;
+    if (!lastSeen[userId] || status[userId] > lastSeen[userId]) {
+      el.classList.add("unread");
+    } else {
+      el.classList.remove("unread");
     }
+  }
+}, 10000);
 
-    async function loadChat(userId) {
-      currentUser = userId;
-      const res = await fetch(`${WORKER_URL}/?user_id=${userId}`);
-      const data = await res.json();
-      const box = document.getElementById('messages');
-      box.innerHTML = '';
-      data.forEach(msg => {
-        const div = document.createElement('div');
-        div.className = `msg ${msg.from}`;
-        div.innerHTML = `
-          <div>${msg.message}</div>
-          <div class="timestamp">${new Date(msg.timestamp).toLocaleString()}</div>
-        `;
-        box.appendChild(div);
-      });
-      setTimeout(() => box.scrollTop = box.scrollHeight, 100);
-    }
+// ✅ 清空消息
+async function clearChat(userId) {
+  if (!confirm("确定要清空此聊天记录？")) return;
+  await fetch(`${WORKER_URL}/clear?user_id=${userId}`);
+  if (currentUser === userId) await loadChat(userId);
+}
 
-    async function sendMessage() {
-      const text = document.getElementById('msgInput').value.trim();
-      if (!text || !currentUser) return alert("请输入消息");
+// ✅ 删除用户
+async function deleteUser(userId) {
+  if (!confirm("确定要删除此用户？聊天记录也将清除")) return;
+  await fetch(`${WORKER_URL}/delete?user_id=${userId}`);
+  if (currentUser === userId) {
+    currentUser = null;
+    document.getElementById("chat").innerHTML = "";
+  }
+  await loadUsers();
+}
 
-      const res = await fetch(`${WORKER_URL}/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: currentUser, text })
-      });
-
-      const result = await res.json();
-      if (result.ok) {
-        loadChat(currentUser);
-        document.getElementById('msgInput').value = '';
-      } else {
-        alert("发送失败: " + (result.error || '未知错误'));
-      }
-    }
-
-    async function clearChat(userId) {
-      if (!confirm("确认清空聊天记录？")) return;
-      const res = await fetch(`${WORKER_URL}/clear`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId })
-      });
-      const r = await res.json();
-      if (r.ok) loadChat(userId);
-    }
-
-    async function deleteUser(userId) {
-      if (!confirm("确认永久删除用户？该用户记录将清除！")) return;
-      const res = await fetch(`${WORKER_URL}/delete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId })
-      });
-      const r = await res.json();
-      if (r.ok) {
-        loadUsers();
-        if (currentUser === userId) {
-          currentUser = null;
-          document.getElementById('messages').innerHTML = '';
-        }
-      }
-    }
-
-    loadUsers();
-  </script>
+loadUsers();
+</script>
 </body>
 </html>
