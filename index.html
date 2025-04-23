@@ -206,13 +206,26 @@ async function clearChat(userId) {
 // ✅ 删除用户
 async function deleteUser(userId) {
   if (!confirm("确定要删除此用户？聊天记录也将清除")) return;
-  await fetch(`${WORKER_URL}/delete?user_id=${userId}`);
-  if (currentUser === userId) {
-    currentUser = null;
-    document.getElementById("chat").innerHTML = "";
+
+  const res = await fetch(`${WORKER_URL}/delete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: userId })
+  });
+
+  const result = await res.json();
+  if (result.ok) {
+    if (currentUser === userId) {
+      currentUser = null;
+      document.getElementById("chat").innerHTML = "";
+    }
+    await loadUsers();
+    alert("✅ 用户已成功删除");
+  } else {
+    alert("❌ 删除失败：" + (result.error || "未知错误"));
   }
-  await loadUsers();
 }
+
 
 loadUsers();
 </script>
