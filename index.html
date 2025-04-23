@@ -185,10 +185,23 @@ setInterval(async () => {
 
 // ✅ 清空消息
 async function clearChat(userId) {
-  if (!confirm("确定要清空此聊天记录？")) return;
-  await fetch(`${WORKER_URL}/clear?user_id=${userId}`);
-  if (currentUser === userId) await loadChat(userId);
+  if (!confirm("确定要清空该用户的聊天记录吗？")) return;
+
+  const res = await fetch(`${WORKER_URL}/clear`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: userId })
+  });
+
+  const result = await res.json();
+  if (result.ok) {
+    alert("✅ 聊天记录已清空");
+    loadChat(userId); // 刷新界面
+  } else {
+    alert("❌ 清空失败：" + (result.error || "未知错误"));
+  }
 }
+
 
 // ✅ 删除用户
 async function deleteUser(userId) {
