@@ -1,144 +1,54 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>JDZ 私人客服</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Potato 聊天面板</title>
   <style>
-    body {
-      font-family: "Segoe UI", sans-serif;
-      background: #f5f5f5;
-      margin: 0;
-    }
-    #login {
-      display: flex;
-      height: 100vh;
-      justify-content: center;
-      align-items: center;
-      background: #fff;
-    }
-    #chat {
-      display: none;
-      max-width: 900px;
-      margin: auto;
-      height: 100vh;
-      display: flex;
-      flex-direction: row;
-    }
-    #userList {
-      width: 200px;
-      border-right: 1px solid #ccc;
-      background: #fafafa;
-      padding: 10px;
-      overflow-y: auto;
-    }
-    #userList div {
-      padding: 6px;
-      cursor: pointer;
-      border-bottom: 1px solid #eee;
-    }
-    #chatBox {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      padding: 10px;
-    }
-    #messages {
-      flex: 1;
-      overflow-y: auto;
-      background: #fff;
-      padding: 10px;
-      border: 1px solid #ccc;
-    }
-    .msg {
-      margin-bottom: 10px;
-      max-width: 80%;
-    }
-    .me {
-      text-align: right;
-      margin-left: auto;
-    }
-    .user {
-      text-align: left;
-      margin-right: auto;
-    }
-    .meta {
-      font-size: 12px;
-      color: #888;
-    }
-    #inputBox {
-      margin-top: 10px;
-      display: flex;
-    }
-    #msgInput {
-      flex: 1;
-      padding: 8px;
-    }
-    button {
-      padding: 8px 12px;
-    }
-    @media (max-width: 600px) {
-      #chat {
-        flex-direction: column;
-      }
-      #userList {
-        width: 100%;
-        height: 150px;
-        border-right: none;
-        border-bottom: 1px solid #ccc;
-      }
-    }
+    body { font-family: sans-serif; margin: 0; display: flex; height: 100vh; background: #f8f9fa; }
+    #sidebar { width: 240px; background: #fff; border-right: 1px solid #ccc; overflow-y: auto; }
+    #chatbox { flex: 1; display: flex; flex-direction: column; }
+    .user-item { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; }
+    .user-item span { display: block; font-size: 12px; color: #888; }
+    #messages { flex: 1; overflow-y: auto; padding: 10px; background: #fff; }
+    .msg { max-width: 80%; margin: 5px 0; padding: 10px; border-radius: 10px; position: relative; }
+    .me { background: #d9edf7; align-self: flex-end; text-align: right; }
+    .user { background: #f1f1f1; align-self: flex-start; }
+    .timestamp { font-size: 10px; color: #999; margin-top: 3px; }
+    #inputbar { display: flex; padding: 10px; background: #f5f5f5; }
+    #msgInput { flex: 1; padding: 6px; font-size: 14px; }
+    #sendBtn { padding: 6px 12px; margin-left: 6px; }
   </style>
 </head>
 <body>
-  <div id="login">
-    <div>
-      <h2>🔒 请输入密码进入系统</h2>
-      <input type="password" id="pwdInput" placeholder="请输入密码 jdz500w" />
-      <button onclick="checkPwd()">登录</button>
-      <p id="loginTip" style="color: red;"></p>
-    </div>
-  </div>
-
-  <div id="chat">
-    <div id="userList"></div>
-    <div id="chatBox">
-      <div id="messages"></div>
-      <div id="inputBox">
-        <input id="msgInput" placeholder="输入消息…" />
-        <button onclick="sendMessage()">发送</button>
-      </div>
+  <div id="sidebar"></div>
+  <div id="chatbox">
+    <div id="messages"></div>
+    <div id="inputbar">
+      <input id="msgInput" placeholder="输入消息...">
+      <button id="sendBtn" onclick="sendMessage()">发送</button>
     </div>
   </div>
 
   <script>
-    const WORKER_URL = 'https://ai.jdz.ip-ddns.com'; // 更改为你的 Worker 域名
-    const CHAT_PWD = "jdz500w";
+    const WORKER_URL = "https://ai.jdz.ip-ddns.com";
     let currentUser = null;
-
-    function checkPwd() {
-      const pwd = document.getElementById("pwdInput").value;
-      if (pwd !== CHAT_PWD) {
-        document.getElementById("loginTip").textContent = "密码错误";
-        return;
-      }
-      document.getElementById("login").style.display = "none";
-      document.getElementById("chat").style.display = "flex";
-      loadUsers();
-    }
 
     async function loadUsers() {
       const res = await fetch(`${WORKER_URL}/users`);
       const users = await res.json();
-      const userList = document.getElementById('userList');
-      userList.innerHTML = '';
-
-      users.forEach(userId => {
+      const sidebar = document.getElementById('sidebar');
+      sidebar.innerHTML = '';
+      users.forEach(({ userId, username }) => {
         const div = document.createElement('div');
-        const isVerified = /^[1-9]\d{6,}$/.test(userId);
-        div.innerHTML = `${userId} <span style="font-size: 12px; color: ${isVerified ? 'green' : 'red'}">[${isVerified ? '验证' : '测试'}]</span>`;
+        div.className = 'user-item';
+        div.innerHTML = `
+          <strong>${username ? '@' + username : '(未知)'}</strong> <span>ID: ${userId}</span>
+          <button onclick="clearChat('${userId}')">清空</button>
+          <button onclick="deleteUser('${userId}')">删除</button>
+        `;
         div.onclick = () => loadChat(userId);
-        userList.appendChild(div);
+        sidebar.appendChild(div);
       });
     }
 
@@ -146,35 +56,68 @@
       currentUser = userId;
       const res = await fetch(`${WORKER_URL}/?user_id=${userId}`);
       const data = await res.json();
-      const messages = document.getElementById("messages");
-      messages.innerHTML = '';
-
+      const box = document.getElementById('messages');
+      box.innerHTML = '';
       data.forEach(msg => {
-        const div = document.createElement("div");
-        div.className = "msg " + (msg.from === "me" ? "me" : "user");
-        const date = new Date(msg.timestamp).toLocaleTimeString();
+        const div = document.createElement('div');
+        div.className = `msg ${msg.from}`;
         div.innerHTML = `
-          <div class="meta">${msg.from === "me" ? "你" : "用户"} · ${date}</div>
           <div>${msg.message}</div>
+          <div class="timestamp">${new Date(msg.timestamp).toLocaleString()}</div>
         `;
-        messages.appendChild(div);
+        box.appendChild(div);
       });
-      messages.scrollTop = messages.scrollHeight;
+      setTimeout(() => box.scrollTop = box.scrollHeight, 100);
     }
 
     async function sendMessage() {
       const text = document.getElementById('msgInput').value.trim();
       if (!text || !currentUser) return alert("请输入消息");
 
-      await fetch(`${WORKER_URL}/send`, {
+      const res = await fetch(`${WORKER_URL}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: currentUser, text })
       });
 
-      document.getElementById('msgInput').value = '';
-      loadChat(currentUser);
+      const result = await res.json();
+      if (result.ok) {
+        loadChat(currentUser);
+        document.getElementById('msgInput').value = '';
+      } else {
+        alert("发送失败: " + (result.error || '未知错误'));
+      }
     }
+
+    async function clearChat(userId) {
+      if (!confirm("确认清空聊天记录？")) return;
+      const res = await fetch(`${WORKER_URL}/clear`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId })
+      });
+      const r = await res.json();
+      if (r.ok) loadChat(userId);
+    }
+
+    async function deleteUser(userId) {
+      if (!confirm("确认永久删除用户？该用户记录将清除！")) return;
+      const res = await fetch(`${WORKER_URL}/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId })
+      });
+      const r = await res.json();
+      if (r.ok) {
+        loadUsers();
+        if (currentUser === userId) {
+          currentUser = null;
+          document.getElementById('messages').innerHTML = '';
+        }
+      }
+    }
+
+    loadUsers();
   </script>
 </body>
 </html>
